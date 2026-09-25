@@ -18,6 +18,7 @@ These keep the app trustworthy:
 - JDK 17 and the Android SDK (API 35). Android Studio is the easiest option.
 - `./gradlew :core:test :connectors:test :assistant:test` runs the JVM test suites (no emulator needed).
 - `./gradlew :app:assembleDebug` builds an installable APK.
+- `./gradlew :app:connectedDebugAndroidTest` runs the UI smoke test on a connected phone or emulator. It walks through every tab with demo data and saves screenshots. It installs the debug build, which sits alongside the regular app.
 - Tap **Explore with demo data** on first launch to get realistic data without connecting anything.
 
 ## Where things go

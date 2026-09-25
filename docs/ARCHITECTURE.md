@@ -69,5 +69,6 @@ No Android and no network: pure functions over plain data classes. Amounts are a
 - `core`: amortization math, avalanche vs. snowball, infeasible plans, extra-needed search, categorization and transfer linking, budget pacing and rollover, recurring detection and price changes, safe-to-spend, CSV parsing, and an end-to-end demo-household computation.
 - `connectors`: SimpleFIN claim/fetch/revocation against a mock server, Plaid sync mapping (liabilities, categories, pagination, removals) and re-authentication errors.
 - `assistant`: every tool returns valid JSON; input validation and privacy restrictions; proposal validation; a full streamed tool-use round trip against a mock Messages API (including the fallback header and tool result shape); error rollback.
+- `app` (`AppSmokeTest`, on a device or emulator): onboards with demo data, opens every tab and sub-tab, account details, settings and the connect screen, and saves a screenshot of each.
 
-CI (`.github/workflows/ci.yml`) runs these tests and builds both debug and minified release APKs on every push.
+CI (`.github/workflows/ci.yml`) runs the JVM tests, builds both debug and minified release APKs, and runs the smoke test on an emulator on every push. Screenshots are uploaded as the `ui-test-results` artifact.

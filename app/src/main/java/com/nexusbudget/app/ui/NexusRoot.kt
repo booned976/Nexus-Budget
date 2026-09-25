@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -113,6 +114,7 @@ private fun MainNavigation() {
                     tabs.forEach { tab ->
                         val selected = route == tab.route
                         NavigationBarItem(
+                            modifier = Modifier.testTag("tab-${tab.route}"),
                             selected = selected,
                             onClick = { nav.navigateToTab(tab.route) },
                             icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },

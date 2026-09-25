@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Rule
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Rule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -70,7 +70,7 @@ fun RulesScreen(nav: NavHostController) {
                 )
             }
             if (rules.isEmpty()) {
-                item { EmptyState(Icons.Outlined.Rule, "No rules yet", "Add one, like \"GREENLEAF\" → Groceries.") }
+                item { EmptyState(Icons.AutoMirrored.Outlined.Rule, "No rules yet", "Add one, like \"GREENLEAF\" → Groceries.") }
             }
             items(rules, key = { it.id }) { rule ->
                 val category = index[rule.categoryId]

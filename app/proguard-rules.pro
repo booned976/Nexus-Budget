@@ -14,6 +14,8 @@
 -dontwarn com.github.victools.jsonschema.**
 -dontwarn org.w3c.dom.bootstrap.**
 -dontwarn java.lang.invoke.StringConcatFactory
+# Only used by the SDK's class-based JSON schema generation, which this app doesn't use.
+-dontwarn java.lang.reflect.AnnotatedType
 -dontwarn javax.lang.model.**
 -dontwarn com.google.auto.value.**
 -dontwarn org.jetbrains.annotations.**

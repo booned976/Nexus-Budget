@@ -2,8 +2,12 @@ package com.nexusbudget.app
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -13,8 +17,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
-import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -46,10 +50,23 @@ class AppSmokeTest {
             }
         } catch (e: Throwable) {
             screenshot("failure-${text.take(20).replace(' ', '-')}")
-            val tree = runCatching { rule.onRoot().printToString(maxDepth = 12) }.getOrElse { "(tree unavailable: ${it.message})" }
-            throw AssertionError("Timed out waiting for \"$text\". Screen contents:\n${tree.take(6000)}", e)
+            // Kept on one line so it shows up in the Gradle console output.
+            throw AssertionError("Timed out waiting for \"$text\". On screen: ${visibleText()}", e)
         }
     }
+
+    /** Every text and content description currently on screen, joined into one line. */
+    private fun visibleText(): String = runCatching {
+        rule.onAllNodes(isRoot()).fetchSemanticsNodes(atLeastOneRootRequired = false)
+            .flatMap(::texts)
+            .joinToString(" | ")
+            .take(4000)
+    }.getOrElse { "(unavailable: ${it.message})" }
+
+    private fun texts(node: SemanticsNode): List<String> =
+        node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } +
+            node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
+            node.children.flatMap(::texts)
 
     private fun screenshot(name: String) {
         rule.waitForIdle()
@@ -74,11 +91,11 @@ class AppSmokeTest {
         // Onboarding
         waitFor("Nexus Budget")
         screenshot("00-onboarding")
-        rule.onNodeWithText("Continue").performClick()
+        rule.onNodeWithText("Continue").performScrollTo().performClick()
         waitFor("Private by design")
-        rule.onNodeWithText("Continue").performClick()
+        rule.onNodeWithText("Continue").performScrollTo().performClick()
         waitFor("Explore with demo data")
-        rule.onNodeWithText("Explore with demo data").performClick()
+        rule.onNodeWithText("Explore with demo data").performScrollTo().performClick()
 
         // Home
         waitFor("Safe to spend", timeout = 30_000)
@@ -106,7 +123,7 @@ class AppSmokeTest {
         openTab("budget", "Left to budget")
         screenshot("06-budget")
         rule.onNodeWithText("Transactions").performClick()
-        waitFor("Search merchants")
+        waitFor("Uncategorized (")
         screenshot("07-transactions")
         rule.onNodeWithText("Recurring").performClick()
         waitFor("Every month")

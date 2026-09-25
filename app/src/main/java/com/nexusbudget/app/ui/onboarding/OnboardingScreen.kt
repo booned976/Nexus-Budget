@@ -1,5 +1,6 @@
 package com.nexusbudget.app.ui.onboarding
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.nexusbudget.app.ui.LocalAppContainer
 import com.nexusbudget.app.ui.components.IconBadge
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
@@ -91,7 +93,14 @@ fun OnboardingScreen(onFinished: () -> Unit) {
                 OutlinedButton(
                     onClick = {
                         scope.launch {
-                            container.finance.loadDemo()
+                            // If the sample data can't be loaded, finish anyway: Home offers it again.
+                            try {
+                                container.finance.loadDemo()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.e("NexusBudget", "Couldn't load demo data", e)
+                            }
                             onFinished()
                         }
                     },

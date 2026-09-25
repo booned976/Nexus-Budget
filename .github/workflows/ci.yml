@@ -82,7 +82,12 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew :app:connectedDebugAndroidTest
+          # On failure, print the app's warnings and errors before the emulator shuts down.
+          script: ./gradlew :app:connectedDebugAndroidTest || (adb logcat -d '*:W' | grep -vE 'chatty|GoogleApiManager|Finsky|GmsClient' | tail -250; exit 1)
+
+      - name: Print test results
+        if: failure()
+        run: find app/build/outputs/androidTest-results -name '*.xml' -exec cat {} + || true
 
       - name: Upload screenshots and reports
         if: always()

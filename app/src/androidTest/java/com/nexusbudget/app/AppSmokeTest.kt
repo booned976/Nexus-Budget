@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -39,8 +40,14 @@ class AppSmokeTest {
     }
 
     private fun waitFor(text: String, timeout: Long = 20_000) {
-        rule.waitUntil(timeoutMillis = timeout) {
-            rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+        try {
+            rule.waitUntil(timeoutMillis = timeout) {
+                rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+        } catch (e: Throwable) {
+            screenshot("failure-${text.take(20).replace(' ', '-')}")
+            val tree = runCatching { rule.onRoot().printToString(maxDepth = 12) }.getOrElse { "(tree unavailable: ${it.message})" }
+            throw AssertionError("Timed out waiting for \"$text\". Screen contents:\n${tree.take(6000)}", e)
         }
     }
 

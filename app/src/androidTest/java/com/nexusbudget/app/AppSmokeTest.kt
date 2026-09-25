@@ -5,11 +5,11 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -46,7 +46,8 @@ class AppSmokeTest {
     private fun waitFor(text: String, timeout: Long = 20_000) {
         try {
             rule.waitUntil(timeoutMillis = timeout) {
-                rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty()
+                rule.onAllNodes(hasText(text, substring = true) or hasContentDescription(text, substring = true))
+                    .fetchSemanticsNodes().isNotEmpty()
             }
         } catch (e: Throwable) {
             screenshot("failure-${text.take(20).replace(' ', '-')}")
@@ -151,7 +152,7 @@ class AppSmokeTest {
         screenshot("14-settings")
         pressBack()
         openTab("accounts", "Add account") // The button floats above the list, which is still scrolled
-        rule.onNodeWithText("Add account").performClick()
+        rule.onNodeWithContentDescription("Add account").performClick()
         waitFor("Connect with SimpleFIN")
         screenshot("15-connect")
     }

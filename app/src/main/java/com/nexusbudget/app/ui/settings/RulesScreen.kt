@@ -53,7 +53,8 @@ fun RulesScreen(nav: NavHostController) {
         title = "Categorization rules",
         onBack = { nav.popBackStack() },
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = { adding = true }, icon = { Icon(Icons.Outlined.Add, contentDescription = null) }, text = { Text("Add rule") })
+            // The extended button hides its text from screen readers, so the icon carries the label.
+            ExtendedFloatingActionButton(onClick = { adding = true }, icon = { Icon(Icons.Outlined.Add, contentDescription = "Add rule") }, text = { Text("Add rule") })
         },
     ) { padding ->
         val index = categories ?: return@ScreenScaffold

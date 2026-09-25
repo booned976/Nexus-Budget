@@ -79,9 +79,10 @@ fun AccountsScreen(nav: NavHostController) {
         snackbarHostState = snackbar,
         actions = { IconButton(onClick = sync) { Icon(Icons.Outlined.Sync, contentDescription = "Sync now") } },
         floatingActionButton = {
+            // The extended button hides its text from screen readers, so the icon carries the label.
             ExtendedFloatingActionButton(
                 onClick = { nav.navigate(Routes.CONNECT) },
-                icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                icon = { Icon(Icons.Outlined.Add, contentDescription = "Add account") },
                 text = { Text("Add account") },
             )
         },

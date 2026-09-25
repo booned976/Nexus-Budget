@@ -323,7 +323,7 @@ fun MoneyField(
         prefix = { Text("$") },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        supportingText = supportingText?.let { { Text(it) } },
+        supportingText = if (supportingText != null) { { Text(supportingText) } } else null,
         modifier = modifier.fillMaxWidth(),
     )
 }

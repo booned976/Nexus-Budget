@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.nexusbudget.app.data.ImportFile
 import com.nexusbudget.app.data.ImportFiles
@@ -48,7 +49,6 @@ import com.nexusbudget.app.ui.ScreenScaffold
 import com.nexusbudget.app.ui.components.ListRow
 import com.nexusbudget.app.ui.components.MoneyText
 import com.nexusbudget.app.ui.components.NexusCard
-import com.nexusbudget.app.ui.navigateToTab
 import com.nexusbudget.app.ui.short
 import com.nexusbudget.core.importer.CsvImportResult
 import com.nexusbudget.core.importer.CsvImporter
@@ -126,7 +126,7 @@ fun ImportScreen(nav: NavHostController, initialAccountId: String) {
                     Spacer(Modifier.height(6.dp))
                     Text(result, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { nav.navigateToTab(Routes.ACCOUNTS) }, modifier = Modifier.fillMaxWidth()) { Text("View accounts") }
+                    Button(onClick = { showAccounts(nav) }, modifier = Modifier.fillMaxWidth()) { Text("View accounts") }
                     TextButton(onClick = { file = null; done = null }) { Text("Import another file") }
                 }
                 return@Column
@@ -270,6 +270,19 @@ private fun StatementPreview(statements: List<Statement>, importing: Boolean, on
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Goes back to the Accounts list. Switching tabs normally restores that tab's saved screens, which
+ * would include this import screen when it was opened from Accounts, so pop back to it instead.
+ */
+private fun showAccounts(nav: NavHostController) {
+    if (!nav.popBackStack(Routes.ACCOUNTS, inclusive = false)) {
+        nav.navigate(Routes.ACCOUNTS) {
+            popUpTo(nav.graph.findStartDestination().id)
+            launchSingleTop = true
+        }
     }
 }
 

@@ -145,12 +145,12 @@ class AppSmokeTest {
         screenshot("13-assistant-setup")
 
         // Settings and add-account flow
-        openTab("home", "Safe to spend")
+        openTab("home", "Good ") // Home keeps its scroll position, so check the greeting in the top bar
         rule.onNodeWithContentDescription("Settings").performClick()
         waitFor("Connections")
         screenshot("14-settings")
         pressBack()
-        openTab("accounts", "Net worth")
+        openTab("accounts", "Add account") // The button floats above the list, which is still scrolled
         rule.onNodeWithText("Add account").performClick()
         waitFor("Connect with SimpleFIN")
         screenshot("15-connect")

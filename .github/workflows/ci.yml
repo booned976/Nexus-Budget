@@ -33,8 +33,15 @@ jobs:
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug
 
-      - name: Build release APK (minified)
-        run: ./gradlew :app:assembleRelease
+      # Signs with a throwaway key made the same way as the release SIGNING_KEY, so the signing setup
+      # the release workflow depends on is checked on every push.
+      - name: Build release APK (minified, signed)
+        run: |
+          keytool -genkeypair -storetype PKCS12 -keystore "$RUNNER_TEMP/ci.p12" -alias nexusbudget \
+            -keyalg RSA -keysize 2048 -validity 1 -storepass nexusbudget -dname "CN=CI"
+          NEXUS_KEYSTORE_FILE="$RUNNER_TEMP/ci.p12" ./gradlew :app:assembleRelease
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep "CN=CI"
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4

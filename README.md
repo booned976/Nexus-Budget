@@ -5,9 +5,19 @@
 [![CI](https://github.com/booned976/Nexus-Budget/actions/workflows/ci.yml/badge.svg)](https://github.com/booned976/Nexus-Budget/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-- **Read-only bank connections.** The app can see balances and transactions. It can never move money.
-- **Your data stays on your phone.** There are no company servers, no sign-up, no ads and no tracking.
+- **Free. No subscriptions, no ads, no sign-up.** Everything works without paying anyone.
+- **Your data stays on your phone.** There are no company servers and no tracking. Bank access is read-only and can never move money.
 - **Open source (GPL-3.0).** Anyone can read, build, change and share it.
+
+## Install
+
+<a href="https://github.com/booned976/Nexus-Budget/releases/latest/download/NexusBudget.apk"><img src="docs/images/download-qr.svg" alt="QR code linking to the APK download" width="140" align="right"></a>
+
+1. On your Android phone, tap **[Download Nexus Budget](https://github.com/booned976/Nexus-Budget/releases/latest/download/NexusBudget.apk)**, or scan the QR code with your phone's camera.
+2. Open the downloaded file. If Android asks, allow your browser or Files app to install apps, then tap **Install**.
+3. Open Nexus Budget and tap **Explore with demo data** to look around, or **Set up my accounts**.
+
+Android 8.0 or newer. To update later, go to **Settings → Check for updates** in the app, or download again. Updates install over the old version and keep your data.
 
 ---
 
@@ -22,10 +32,12 @@
 - A **home screen widget** shows safe-to-spend and net worth.
 
 ### Accounts
-- Connect **checking, savings, credit cards, brokerage and retirement accounts, and student, auto and other loans**. Connections use SimpleFIN or Plaid, and both are read-only.
-- Track anything else **manually** (cash, a car, a private loan) or **import a CSV** export from any bank's website.
+- Bring in **checking, savings, credit cards, brokerage and retirement accounts, and student, auto and other loans**.
+- **Free statement import:** download an OFX, QFX, QBO or CSV file from your bank's website and open it with Nexus Budget. Statement files create the account, set the balance and add the transactions by themselves, and re-importing a newer file only adds what's new.
+- Track anything else **manually** (cash, a car, a private loan).
+- Optional **automatic sync** through third-party services (SimpleFIN or Plaid), always read-only.
 - Debt details: APR, minimum payment, due date, credit utilization, and how long payoff takes at the minimum payment.
-- Investment **holdings** for connected brokerage accounts.
+- Investment **holdings** from brokerage statement files or connected accounts.
 - Net worth history chart. Touch and drag it to see exact values.
 
 ### Budget
@@ -60,22 +72,17 @@
 
 ## Getting started
 
-### Install
-Download the latest APK from the [Releases page](https://github.com/booned976/Nexus-Budget/releases) and open it on your phone (you may need to allow installing apps from your browser or file manager). Android 8.0 or newer is required.
+### Add your accounts
+| Method | Cost | How |
+|---|---|---|
+| **Statement file** | Free | On your bank, card, brokerage or loan website, find **Download**, **Export** or **Statements** and pick OFX, QFX or QBO (or CSV). Open the file on your phone and choose Nexus Budget. |
+| **Manual** | Free | Enter a balance yourself. Good for cash, a car or a private loan. |
+| **Automatic sync** (optional) | Set by the provider | SimpleFIN (a paid service) or Plaid (your own developer keys; real accounts need Plaid's approval). |
 
-The first launch offers a **demo household** so you can explore every screen before connecting anything.
+Nexus Budget never charges for anything and earns nothing from these services. Step-by-step instructions: **[docs/CONNECTING_ACCOUNTS.md](docs/CONNECTING_ACCOUNTS.md)**.
 
-### Connect your accounts
-| Method | Best for | Cost | Setup |
-|---|---|---|---|
-| **SimpleFIN** (recommended) | Most people: banks, cards, brokerages and loan servicers | Small subscription paid to SimpleFIN | Paste one setup token |
-| **Plaid** | Detailed loan data (APR, minimums, due dates) and investment holdings | Your own Plaid developer account | Add API keys in Settings |
-| **Manual / CSV** | Anything else | Free | Enter balances or import a file |
-
-Step-by-step instructions: **[docs/CONNECTING_ACCOUNTS.md](docs/CONNECTING_ACCOUNTS.md)**.
-
-### Turn on the AI coach
-Create an API key in the [Anthropic Console](https://console.anthropic.com/settings/keys) and paste it into **Ask AI**. Details, costs and exactly what is shared: **[docs/AI_ASSISTANT.md](docs/AI_ASSISTANT.md)**.
+### AI coach (optional)
+Everything else works without it. To turn it on, create an API key in the [Anthropic Console](https://console.anthropic.com/settings/keys) and paste it into **Ask AI**. There's no subscription: Anthropic bills only for the questions you ask, and you can set a spending limit. Details and exactly what is shared: **[docs/AI_ASSISTANT.md](docs/AI_ASSISTANT.md)**.
 
 ---
 
@@ -90,13 +97,13 @@ cd Nexus-Budget
 ./gradlew :app:assembleDebug                             # app/build/outputs/apk/debug/
 ```
 
-To publish a release, push a tag like `v0.1.0`. The [release workflow](.github/workflows/release.yml) tests, builds and attaches the APK to a GitHub Release. Add the `NEXUS_KEYSTORE_*` secrets to sign it with your own key.
+Every merge into `main` publishes a new APK on the Releases page automatically. See **[docs/RELEASING.md](docs/RELEASING.md)**, including the one-time signing key setup that lets updates install over earlier versions.
 
 ## Project layout
 
 | Module | What's inside |
 |---|---|
-| `core` | Pure Kotlin finance engine: budgets, recurring detection, debt payoff, goals, forecasts, recommendations, CSV import, demo data |
+| `core` | Pure Kotlin finance engine: budgets, recurring detection, debt payoff, goals, forecasts, recommendations, statement (OFX/QFX/QBO) and CSV import, demo data |
 | `connectors` | Read-only SimpleFIN and Plaid clients |
 | `assistant` | Claude-powered coach: tools over local data, conversation loop, AI categorization |
 | `app` | Android app (Jetpack Compose, Room, WorkManager, Glance widget) |

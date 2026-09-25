@@ -1,12 +1,21 @@
 name: Release
 
-# Push a tag like v0.1.0 to publish an installable APK on the GitHub Releases page.
+# Publishes an installable APK on the Releases page every time main changes, so the
+# "Download" link in the README always points to the newest build. Pushing a tag like
+# v1.2.0 publishes that exact version instead.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+    paths-ignore: ["**.md", "docs/**", ".github/ISSUE_TEMPLATE/**"]
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -22,29 +31,62 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Optional: add these repository secrets to sign releases with your own key.
-      # Without them the APK is signed with a throwaway debug key (fine for testing,
-      # but updates must then be reinstalled rather than upgraded).
+      - name: Choose version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            name="${GITHUB_REF_NAME#v}"
+          else
+            name="0.1.${GITHUB_RUN_NUMBER}"
+          fi
+          # The version code only ever goes up, so each release installs over the last one.
+          echo "NEXUS_VERSION_NAME=$name" >> "$GITHUB_ENV"
+          echo "NEXUS_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$name" >> "$GITHUB_ENV"
+
+      # Add a repository secret named SIGNING_KEY (a base64-encoded keystore) so every release is
+      # signed with the same key. Android only installs an update over an existing app when the keys
+      # match. See docs/RELEASING.md.
       - name: Prepare signing key
         env:
-          KEYSTORE_BASE64: ${{ secrets.NEXUS_KEYSTORE_BASE64 }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "NEXUS_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          if [ -n "$SIGNING_KEY" ]; then
+            printf '%s' "$SIGNING_KEY" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/release.p12"
+            echo "NEXUS_KEYSTORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+            if [ -n "$SIGNING_KEY_PASSWORD" ]; then echo "NEXUS_KEYSTORE_PASSWORD=$SIGNING_KEY_PASSWORD" >> "$GITHUB_ENV"; fi
+            echo "SIGNING_NOTE=" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No SIGNING_KEY secret, so this APK is signed with a temporary key. Updates will need a reinstall. See docs/RELEASING.md."
+            echo "SIGNING_NOTE=Note: this build is signed with a temporary key, so installing it over an earlier download may require uninstalling first." >> "$GITHUB_ENV"
           fi
 
       - name: Test and build release APK
-        env:
-          NEXUS_KEYSTORE_PASSWORD: ${{ secrets.NEXUS_KEYSTORE_PASSWORD }}
-          NEXUS_KEY_ALIAS: ${{ secrets.NEXUS_KEY_ALIAS }}
-          NEXUS_KEY_PASSWORD: ${{ secrets.NEXUS_KEY_PASSWORD }}
         run: ./gradlew :core:test :connectors:test :assistant:test :app:assembleRelease --stacktrace
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk "nexus-budget-${GITHUB_REF_NAME}.apk"
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk NexusBudget.apk
+
+      - name: Write release notes
+        run: |
+          cat > release-notes.md <<EOF
+          ## Install on Android
+
+          1. On your phone, download **NexusBudget.apk** below.
+          2. Open it. If Android asks, allow your browser or Files app to install apps.
+          3. Open Nexus Budget. Already have it? This installs over it and keeps your data.
+
+          Requires Android 8.0 or newer. Nexus Budget is free and has no ads or subscriptions.
+
+          ${SIGNING_NOTE}
+          EOF
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: nexus-budget-${{ github.ref_name }}.apk
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Nexus Budget ${{ env.NEXUS_VERSION_NAME }}
+          body_path: release-notes.md
           generate_release_notes: true
+          make_latest: true
+          files: NexusBudget.apk

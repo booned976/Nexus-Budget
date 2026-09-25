@@ -10,7 +10,7 @@ The **Ask AI** tab is an optional financial coach powered by [Claude](https://ww
 
 The key is encrypted with your phone's secure hardware (Android Keystore) and is only ever sent to Anthropic's API. Nexus Budget has no servers of its own, so there's no middleman.
 
-**Cost:** Anthropic charges your API account per use. A typical question costs a few cents, and more with a larger model or **Thorough** depth. You can set spending limits in the Anthropic Console.
+**Cost:** the coach is optional, and the rest of the app works without it. There's no subscription: Anthropic charges your API account only for the questions you ask, with larger models and **Thorough** depth costing more per question. You can set a monthly spending limit in the Anthropic Console.
 
 ## Things to ask
 

@@ -14,7 +14,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
-import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
@@ -53,6 +52,11 @@ class AppSmokeTest {
         }
     }
 
+    private fun pressBack() {
+        rule.runOnUiThread { rule.activity.onBackPressedDispatcher.onBackPressed() }
+        rule.waitForIdle()
+    }
+
     private fun openTab(route: String, expected: String) {
         rule.onNodeWithTag("tab-$route").performClick()
         waitFor(expected)
@@ -83,13 +87,13 @@ class AppSmokeTest {
         rule.onNodeWithText("Everyday Checking").performClick()
         waitFor("Balance")
         screenshot("04-account-detail")
-        Espresso.pressBack()
+        pressBack()
         waitFor("Everyday Checking")
         rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Federal Student Loan"))
         rule.onNodeWithText("Federal Student Loan").performClick()
         waitFor("Debt details")
         screenshot("05-student-loan")
-        Espresso.pressBack()
+        pressBack()
 
         // Budget and its sub-tabs
         openTab("budget", "Left to budget")
@@ -121,7 +125,7 @@ class AppSmokeTest {
         rule.onNodeWithContentDescription("Settings").performClick()
         waitFor("Connections")
         screenshot("14-settings")
-        Espresso.pressBack()
+        pressBack()
         openTab("accounts", "Net worth")
         rule.onNodeWithText("Add account").performClick()
         waitFor("Connect with SimpleFIN")

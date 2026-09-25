@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nexus Budget</string>
+    <string name="widget_name">Safe to spend</string>
+    <string name="widget_description">Your safe-to-spend amount and net worth at a glance</string>
+</resources>

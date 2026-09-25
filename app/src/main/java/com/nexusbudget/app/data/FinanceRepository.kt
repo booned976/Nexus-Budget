@@ -1,6 +1,8 @@
 package com.nexusbudget.app.data
 
 import androidx.room.withTransaction
+import com.nexusbudget.app.data.db.AccountEntity
+import com.nexusbudget.app.data.db.HoldingEntity
 import com.nexusbudget.app.data.db.NexusDatabase
 import com.nexusbudget.app.data.db.RuleEntity
 import com.nexusbudget.core.demo.DemoData
@@ -10,6 +12,7 @@ import com.nexusbudget.core.engine.MerchantNormalizer
 import com.nexusbudget.core.engine.NetWorthCalculator
 import com.nexusbudget.core.engine.TransactionPipeline
 import com.nexusbudget.core.importer.ImportedRow
+import com.nexusbudget.core.importer.Statement
 import com.nexusbudget.core.model.Account
 import com.nexusbudget.core.model.BudgetTarget
 import com.nexusbudget.core.model.Categories
@@ -37,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
 import java.util.UUID
 
 /** Raw data plus the computed financial picture, emitted together so screens never see them out of sync. */
@@ -238,6 +242,91 @@ class FinanceRepository(
         return txns.size
     }
 
+    /** Where each statement will go: the name of the account it matches, or null for a new account. */
+    suspend fun previewStatements(statements: List<Statement>): List<String?> {
+        val all = db.accounts().all()
+        return statements.map { statement -> findStatementAccount(statement, all)?.toDomain()?.displayName }
+    }
+
+    /**
+     * Imports statement files (OFX, QFX, QBO). Each statement goes into the account it was imported into
+     * before, or a hand-tracked account with the same type and last four digits, or a new account.
+     * The file's balance is used unless a newer one is already recorded.
+     */
+    suspend fun importStatements(statements: List<Statement>): StatementImportResult {
+        var added = 0
+        var updated = 0
+        val incoming = mutableListOf<Transaction>()
+        for (statement in statements) {
+            val key = statement.accountKey
+            val match = findStatementAccount(statement, db.accounts().all())
+            val asOf = statement.balanceDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant() ?: Instant.now()
+            val balance = statement.balance
+            val accountId: String
+            val takeBalance: Boolean
+            if (match == null) {
+                accountId = "file:${UUID.randomUUID()}"
+                takeBalance = true
+                val type = statement.suggestedType
+                val account = Account(
+                    id = accountId,
+                    name = type.label,
+                    type = type,
+                    balance = balance ?: 0,
+                    institution = statement.institution,
+                    available = statement.available,
+                    currency = statement.currency,
+                    mask = statement.mask.ifEmpty { null },
+                    lastUpdated = asOf,
+                )
+                db.accounts().upsert(account.toEntity(externalId = key))
+                added++
+            } else {
+                accountId = match.id
+                // The first import into an existing account always takes the file's balance.
+                takeBalance = balance != null && (match.externalId != key || match.lastUpdated == null || asOf.toEpochMilli() >= match.lastUpdated)
+                db.accounts().upsert(
+                    match.copy(
+                        externalId = key,
+                        balance = if (takeBalance) balance!! else match.balance,
+                        available = if (takeBalance) statement.available else match.available,
+                        lastUpdated = if (takeBalance) asOf.toEpochMilli() else match.lastUpdated,
+                        institution = match.institution ?: statement.institution,
+                    ),
+                )
+                updated++
+            }
+            if (takeBalance && statement.holdings.isNotEmpty()) {
+                db.withTransaction {
+                    db.holdings().deleteForAccounts(listOf(accountId))
+                    db.holdings().insertAll(statement.holdings.map { HoldingEntity(accountId, it.securityId, it.name, it.ticker, it.quantity, it.value, null) })
+                }
+            }
+            val existing = db.transactions().since(0).filter { it.accountId == accountId }.map { it.id }.toSet()
+            val seen = mutableMapOf<String, Int>()
+            statement.transactions.forEach { row ->
+                val id = if (row.id != null) {
+                    "$key:${row.id}"
+                } else {
+                    val base = "$key:${row.date}:${row.amount}:${row.description.lowercase().hashCode()}"
+                    "$base:${seen.merge(base, 1, Int::plus)}"
+                }
+                if (id !in existing) incoming += Transaction(id, accountId, row.date, row.amount, row.description)
+            }
+        }
+        insertProcessed(incoming.distinctBy { it.id })
+        recordSnapshot()
+        return StatementImportResult(added, updated, incoming.distinctBy { it.id }.size)
+    }
+
+    private fun findStatementAccount(statement: Statement, all: List<AccountEntity>): AccountEntity? =
+        all.firstOrNull { it.externalId == statement.accountKey }
+            ?: all.firstOrNull { entity ->
+                val account = entity.toDomain()
+                account.isManual && entity.externalId == null && statement.mask.isNotEmpty() &&
+                    account.mask == statement.mask && account.type.group == statement.suggestedType.group
+            }
+
     // Categories and rules
 
     suspend fun addRule(pattern: String, categoryId: String, renameTo: String? = null) {
@@ -308,3 +397,5 @@ class FinanceRepository(
         settingsRepository.setDemoMode(false)
     }
 }
+
+data class StatementImportResult(val accountsAdded: Int, val accountsUpdated: Int, val newTransactions: Int)

@@ -115,7 +115,7 @@ fun AccountDetailScreen(nav: NavHostController, accountId: String) {
                         OutlinedButton(onClick = { nav.navigate(Routes.import(account.id)) }, modifier = Modifier.weight(1f)) {
                             Icon(Icons.Outlined.FileUpload, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
-                            Text("Import CSV")
+                            Text("Import file")
                         }
                     }
                 }

@@ -11,6 +11,13 @@ plugins {
 // Release signing is configured through environment variables so no key material lives in the repo.
 // Without them, release builds fall back to the debug key so they stay installable for testing.
 val releaseKeystore: String? = System.getenv("NEXUS_KEYSTORE_FILE")
+val keystorePassword: String = System.getenv("NEXUS_KEYSTORE_PASSWORD") ?: "nexusbudget"
+
+// The release workflow sets these so every published build installs over the previous one.
+val appVersionCode: Int = System.getenv("NEXUS_VERSION_CODE")?.toIntOrNull() ?: 1
+val appVersionName: String = System.getenv("NEXUS_VERSION_NAME") ?: "0.1.0"
+// Where "Check for updates" looks for new releases. Forks get their own repository automatically.
+val updateRepository: String = System.getenv("GITHUB_REPOSITORY") ?: "booned976/Nexus-Budget"
 
 android {
     namespace = "com.nexusbudget.app"
@@ -20,8 +27,9 @@ android {
         applicationId = "io.github.booned976.nexusbudget"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+        buildConfigField("String", "UPDATE_REPOSITORY", "\"$updateRepository\"")
         vectorDrawables { useSupportLibrary = true }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,9 +38,9 @@ android {
         if (releaseKeystore != null) {
             create("release") {
                 storeFile = file(releaseKeystore)
-                storePassword = System.getenv("NEXUS_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("NEXUS_KEY_ALIAS")
-                keyPassword = System.getenv("NEXUS_KEY_PASSWORD")
+                storePassword = keystorePassword
+                keyAlias = System.getenv("NEXUS_KEY_ALIAS") ?: "nexusbudget"
+                keyPassword = System.getenv("NEXUS_KEY_PASSWORD") ?: keystorePassword
             }
         }
     }

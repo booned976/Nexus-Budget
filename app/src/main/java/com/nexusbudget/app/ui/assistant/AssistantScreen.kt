@@ -301,8 +301,9 @@ private fun ApiKeySetup(onSaved: (String) -> Unit) {
         IconBadge(Icons.Outlined.AutoAwesome, size = 48)
         Text("Connect Claude to get an AI money coach", style = MaterialTheme.typography.titleLarge)
         Text(
-            "Nexus Budget uses Claude, by Anthropic, with your own API key. You pay Anthropic directly for what you use " +
-                "(typically a few cents per conversation). There's no middle-man server.",
+            "The coach is optional. Budgets, plans and recommendations all work without it. It uses Claude, by Anthropic, " +
+                "with your own API key: there's no subscription, Anthropic bills you only for the questions you ask, " +
+                "and you can set a spending limit in your Anthropic account.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(

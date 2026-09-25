@@ -15,6 +15,7 @@ Nexus Budget is built so that your financial data belongs to you and stays with 
 | Data | Where | Protection |
 |---|---|---|
 | Accounts, transactions, budgets, goals, chat history | Local database in the app's private storage | Android app sandbox and device file-based encryption |
+| Imported statement files | Read once and not kept. Only the last four digits of account numbers are stored; imports are matched to accounts with a one-way hash of the number | Android app sandbox |
 | SimpleFIN access links, Plaid access tokens, Plaid keys, Anthropic API key | App-private preferences | Encrypted with AES-256-GCM using a key held in the Android Keystore |
 | Settings | App-private preferences | Android app sandbox |
 
@@ -29,6 +30,9 @@ Nexus Budget only makes HTTPS requests (plain HTTP is blocked by the app's netwo
 | Your SimpleFIN server | Syncing a SimpleFIN connection | Your encrypted-at-rest access link (used as credentials) |
 | Plaid (`sandbox.plaid.com` or `production.plaid.com`) | Linking or syncing a Plaid connection | Your Plaid keys and access tokens |
 | Anthropic (`api.anthropic.com`) | Only when you use Ask AI or AI categorization | Your question and the data the assistant looks up (see [AI_ASSISTANT.md](AI_ASSISTANT.md)) |
+| GitHub (`api.github.com`) | Only when you tap **Settings → Check for updates** | Nothing about you or your data; it asks for the latest release number |
+
+Importing a statement file happens entirely on your phone and makes no network requests.
 
 Links you open yourself (like "Get a setup token") open in your browser.
 

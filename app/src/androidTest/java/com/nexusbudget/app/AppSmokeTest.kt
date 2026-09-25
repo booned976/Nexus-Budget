@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.nexusbudget.app.data.ImportFile
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -153,7 +154,42 @@ class AppSmokeTest {
         pressBack()
         openTab("accounts", "Add account") // The button floats above the list, which is still scrolled
         rule.onNodeWithContentDescription("Add account").performClick()
-        waitFor("Connect with SimpleFIN")
+        waitFor("Import a statement file")
         screenshot("15-connect")
+
+        // A downloaded statement file opened with the app goes straight to the import screen.
+        val container = (rule.activity.application as NexusApp).container
+        container.pendingImport.value = ImportFile("statement.qfx", SAMPLE_STATEMENT)
+        waitFor("Creates a new account")
+        screenshot("16-import-preview")
+        rule.onNodeWithText("Import").performScrollTo().performClick()
+        waitFor("Import complete")
+        waitFor("2 new transactions")
+        screenshot("17-import-done")
+        rule.onNodeWithText("View accounts").performClick()
+        waitFor("Add account")
+        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("••8642", substring = true))
+        screenshot("18-imported-account")
+    }
+
+    private companion object {
+        val SAMPLE_STATEMENT = """
+            OFXHEADER:100
+            DATA:OFXSGML
+            VERSION:102
+
+            <OFX>
+            <SIGNONMSGSRSV1><SONRS><STATUS><CODE>0<SEVERITY>INFO</STATUS><FI><ORG>Test Credit Union<FID>42</FI></SONRS></SIGNONMSGSRSV1>
+            <BANKMSGSRSV1><STMTTRNRS><TRNUID>1<STATUS><CODE>0<SEVERITY>INFO</STATUS>
+            <STMTRS><CURDEF>USD
+            <BANKACCTFROM><BANKID>123456789<ACCTID>9900008642<ACCTTYPE>CHECKING</BANKACCTFROM>
+            <BANKTRANLIST><DTSTART>20260901<DTEND>20260920
+            <STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260915<TRNAMT>-42.10<FITID>T1<NAME>CORNER MARKET</STMTTRN>
+            <STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20260916<TRNAMT>1500.00<FITID>T2<NAME>EMPLOYER DIRECT DEP</STMTTRN>
+            </BANKTRANLIST>
+            <LEDGERBAL><BALAMT>1234.56<DTASOF>20260920</LEDGERBAL>
+            </STMTRS></STMTTRNRS></BANKMSGSRSV1>
+            </OFX>
+        """.trimIndent()
     }
 }

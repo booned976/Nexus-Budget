@@ -172,8 +172,8 @@ private fun WelcomeEmpty(onConnect: () -> Unit, onDemo: () -> Unit) {
         EmptyState(
             icon = Icons.Outlined.AccountBalanceWallet,
             title = "Let's see your whole picture",
-            body = "Connect your bank, cards, investments and loans with read-only access, or add accounts by hand. " +
-                "Everything stays on this phone.",
+            body = "Import a statement file from your bank, card, brokerage or loan website, add accounts by hand, " +
+                "or set up automatic sync. Everything stays on this phone.",
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onConnect) { Text("Add an account") }

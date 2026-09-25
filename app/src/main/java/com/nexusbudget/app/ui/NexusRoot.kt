@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -101,10 +102,20 @@ fun NavHostController.navigateToTab(route: String) {
 
 @Composable
 private fun MainNavigation() {
+    val container = LocalAppContainer.current
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val showBar = tabs.any { it.route == route }
+
+    // A file opened or shared into the app goes straight to the import screen, which picks it up.
+    val pendingImport by container.pendingImport.collectAsStateWithLifecycle()
+    val graphReady = backStack != null
+    LaunchedEffect(pendingImport != null, graphReady) {
+        if (pendingImport != null && graphReady && nav.currentDestination?.route != Routes.IMPORT) {
+            nav.navigate(Routes.import())
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

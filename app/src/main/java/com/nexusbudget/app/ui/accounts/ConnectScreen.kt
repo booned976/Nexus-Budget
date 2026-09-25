@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.FileUpload
@@ -36,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -49,6 +51,7 @@ import com.nexusbudget.app.ui.ScreenScaffold
 import com.nexusbudget.app.ui.appViewModel
 import com.nexusbudget.app.ui.components.IconBadge
 import com.nexusbudget.app.ui.components.NexusCard
+import com.nexusbudget.app.ui.components.SectionHeader
 import com.nexusbudget.app.ui.openUrl
 import com.nexusbudget.connectors.plaid.PlaidLinkPurpose
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -122,6 +125,8 @@ fun ConnectScreen(nav: NavHostController) {
     val context = LocalContext.current
     var token by rememberSaveable { mutableStateOf("") }
     var purpose by rememberSaveable { mutableStateOf(PlaidLinkPurpose.BANKING) }
+    var showSimpleFin by rememberSaveable { mutableStateOf(false) }
+    var showPlaid by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(state.finished) {
         if (state.finished) nav.popBackStack()
@@ -141,8 +146,7 @@ fun ConnectScreen(nav: NavHostController) {
                     Icon(Icons.Outlined.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "Connections are read-only. Nexus Budget can see balances and transactions but can never move money. " +
-                            "Your data is stored only on this phone.",
+                        "Nexus Budget is free and your data is stored only on this phone. It can see balances and transactions but can never move money.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -164,100 +168,135 @@ fun ConnectScreen(nav: NavHostController) {
                 }
             }
 
+            SectionHeader("Free")
+            OptionCard(
+                icon = Icons.Outlined.FileUpload,
+                title = "Import a statement file",
+                subtitle = "Download a file from your bank, card, brokerage or loan website and open it here. " +
+                    "Works with almost any institution and fills in the account and balance for you.",
+                onClick = { nav.navigate(Routes.import()) },
+            )
+            OptionCard(
+                icon = Icons.Outlined.EditNote,
+                title = "Add an account manually",
+                subtitle = "Enter a balance yourself. Good for cash, a car, a private loan or anything else.",
+                onClick = { nav.navigate(Routes.editAccount()) },
+            )
+
+            SectionHeader("Automatic sync (optional)")
+            Text(
+                "These services download new transactions in the background so you don't have to import files. " +
+                    "They're run by other companies with their own terms and costs. Nexus Budget doesn't charge for them or earn anything from them.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             // SimpleFIN
             NexusCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.Link)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Connect with SimpleFIN", style = MaterialTheme.typography.titleMedium)
-                        Text("Recommended · works with thousands of banks, cards, brokerages and loan servicers", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OptionHeader(
+                    icon = Icons.Outlined.Link,
+                    title = "SimpleFIN",
+                    subtitle = "Paid service, billed by SimpleFIN · most US banks, cards, brokerages and loan servicers",
+                    expanded = showSimpleFin,
+                    onToggle = { showSimpleFin = !showSimpleFin },
+                )
+                if (showSimpleFin) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "1. Create a SimpleFIN Bridge account and link your institutions there. SimpleFIN charges a subscription for this.\n" +
+                            "2. Create a setup token for Nexus Budget and copy it.\n" +
+                            "3. Paste it below.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = { openUrl(context, ConnectionRepository.SIMPLEFIN_CREATE_URL) }) { Text("Get a setup token") }
+                    OutlinedTextField(
+                        value = token,
+                        onValueChange = { token = it.trim() },
+                        label = { Text("Setup token") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { vm.connectSimpleFin(token) }, enabled = token.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) {
+                        Text("Connect")
                     }
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "1. Create a SimpleFIN Bridge account and link your institutions there (SimpleFIN charges a small subscription fee).\n" +
-                        "2. Create a setup token for Nexus Budget and copy it.\n" +
-                        "3. Paste it below.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = { openUrl(context, ConnectionRepository.SIMPLEFIN_CREATE_URL) }) { Text("Get a setup token") }
-                OutlinedTextField(
-                    value = token,
-                    onValueChange = { token = it.trim() },
-                    label = { Text("Setup token") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(onClick = { vm.connectSimpleFin(token) }, enabled = token.isNotBlank() && !state.busy, modifier = Modifier.fillMaxWidth()) {
-                    Text("Connect")
                 }
             }
 
             // Plaid
             NexusCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.AccountBalance)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Connect with Plaid", style = MaterialTheme.typography.titleMedium)
-                        Text("Uses your own free Plaid developer keys · adds loan APRs and investment holdings", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                if (!vm.plaidConfigured) {
-                    Text("Add your Plaid client ID and secret in Settings first. The setup guide explains how to get them.", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Open settings") }
-                } else if (state.waitingForPlaid) {
-                    Text("Finish connecting in the browser tab. You'll come back here automatically.", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.finishPlaid() }, enabled = !state.busy) { Text("I've finished") }
-                        TextButton(onClick = { vm.cancelPlaid() }) { Text("Cancel") }
-                    }
-                } else {
-                    Text("What are you connecting?", style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            PlaidLinkPurpose.BANKING to "Bank & cards",
-                            PlaidLinkPurpose.INVESTMENTS to "Investments",
-                            PlaidLinkPurpose.LOANS to "Loans",
-                        ).forEach { (option, label) ->
-                            FilterChip(selected = purpose == option, onClick = { purpose = option }, label = { Text(label) })
+                OptionHeader(
+                    icon = Icons.Outlined.AccountBalance,
+                    title = "Plaid",
+                    subtitle = "Uses your own Plaid developer keys · fills in loan rates and investment holdings",
+                    expanded = showPlaid || state.waitingForPlaid,
+                    onToggle = { showPlaid = !showPlaid },
+                )
+                if (showPlaid || state.waitingForPlaid) {
+                    Spacer(Modifier.height(12.dp))
+                    if (!vm.plaidConfigured) {
+                        Text(
+                            "A Plaid developer account is free, and its Sandbox mode uses test data. Connecting real accounts " +
+                                "needs Plaid to approve production access, which Plaid may charge for. Add your keys in Settings; the setup guide explains how.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Open settings") }
+                    } else if (state.waitingForPlaid) {
+                        Text("Finish connecting in the browser tab. You'll come back here automatically.", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { vm.finishPlaid() }, enabled = !state.busy) { Text("I've finished") }
+                            TextButton(onClick = { vm.cancelPlaid() }) { Text("Cancel") }
                         }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Button(onClick = { vm.startPlaid(context, purpose) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
-                        Text("Continue to Plaid")
-                    }
-                }
-            }
-
-            // Manual & CSV
-            NexusCard(onClick = { nav.navigate(Routes.editAccount()) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.EditNote)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Add an account manually", style = MaterialTheme.typography.titleMedium)
-                        Text("Track cash, a loan, a car or anything else by entering the balance yourself", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-            NexusCard(onClick = { nav.navigate(Routes.import()) }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.FileUpload)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("Import a CSV file", style = MaterialTheme.typography.titleMedium)
-                        Text("Download transactions from your bank's website and import them", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Text("What are you connecting?", style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(
+                                PlaidLinkPurpose.BANKING to "Bank & cards",
+                                PlaidLinkPurpose.INVESTMENTS to "Investments",
+                                PlaidLinkPurpose.LOANS to "Loans",
+                            ).forEach { (option, label) ->
+                                FilterChip(selected = purpose == option, onClick = { purpose = option }, label = { Text(label) })
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { vm.startPlaid(context, purpose) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                            Text("Continue to Plaid")
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun OptionCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
+    NexusCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun OptionHeader(icon: ImageVector, title: String, subtitle: String, expanded: Boolean, onToggle: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        TextButton(onClick = onToggle) { Text(if (expanded) "Hide" else "Set up") }
     }
 }

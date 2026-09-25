@@ -38,6 +38,22 @@
                     android:host="plaid-complete"
                     android:scheme="nexusbudget" />
             </intent-filter>
+            <!-- Statement files (OFX, QFX, QBO) and CSV exports opened from a download or shared from another app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <!-- MIME types alone match content:// files, and also shared files that carry no data URI. -->
+                <data android:mimeType="application/x-ofx" />
+                <data android:mimeType="application/ofx" />
+                <data android:mimeType="application/vnd.intu.qfx" />
+                <data android:mimeType="application/x-qfx" />
+                <data android:mimeType="application/vnd.intu.qbo" />
+                <data android:mimeType="application/x-qbo" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="text/comma-separated-values" />
+                <data android:mimeType="application/csv" />
+            </intent-filter>
         </activity>
 
         <receiver

@@ -1,6 +1,8 @@
 package com.nexusbudget.app.ui.settings
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +54,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.nexusbudget.app.BuildConfig
+import com.nexusbudget.app.data.AvailableUpdate
 import com.nexusbudget.app.data.Connection
 import com.nexusbudget.app.data.ConnectionStatus
 import com.nexusbudget.app.data.Provider
@@ -91,6 +94,8 @@ fun SettingsScreen(nav: NavHostController) {
     var removing by remember { mutableStateOf<Connection?>(null) }
     var reconnectingSimpleFin by remember { mutableStateOf<Connection?>(null) }
     var editingAiKey by remember { mutableStateOf(false) }
+    var checkingUpdates by remember { mutableStateOf(false) }
+    var update by remember { mutableStateOf<AvailableUpdate?>(null) }
 
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         scope.launch { container.settings.setNotifications(granted) }
@@ -219,13 +224,38 @@ fun SettingsScreen(nav: NavHostController) {
                 SettingLink("Export transactions (CSV)", "Save a spreadsheet-friendly copy") {
                     exporter.launch("nexus-budget-${LocalDate.now()}.csv")
                 }
-                SettingLink("Import transactions (CSV)", "From your bank's website") { nav.navigate(Routes.import()) }
+                SettingLink("Import a statement file", "OFX, QFX, QBO or CSV from your bank's website") { nav.navigate(Routes.import()) }
                 SettingLink("Load demo data", "Replaces everything with a sample household") { confirmDemo = true }
                 SettingLink("Delete all data", "Erase accounts, transactions, keys and settings from this phone", destructive = true) { confirmDeleteAll = true }
             }
 
             Section("About") {
                 Text("Nexus Budget ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyLarge)
+                val available = update
+                if (available != null) {
+                    Text("Version ${available.version} is available.", style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = { downloadUpdate(context, available.downloadUrl) }) { Text("Download update") }
+                    Text(
+                        "Open the downloaded file to install it. Your data stays in place.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    TextButton(
+                        enabled = !checkingUpdates,
+                        onClick = {
+                            checkingUpdates = true
+                            scope.launch {
+                                val result = runCatching { container.updates.check() }
+                                checkingUpdates = false
+                                result.onSuccess { found ->
+                                    update = found
+                                    if (found == null) snackbar.showSnackbar("You have the latest version.")
+                                }.onFailure { snackbar.showSnackbar("Couldn't check for updates. Are you online?") }
+                            }
+                        },
+                    ) { Text(if (checkingUpdates) "Checking…" else "Check for updates") }
+                }
                 Text(
                     "Free and open source under the GNU GPL v3. No ads, no tracking, no accounts. Your financial data is stored only on this phone.",
                     style = MaterialTheme.typography.bodySmall,
@@ -474,4 +504,9 @@ private suspend fun exportCsv(container: com.nexusbudget.app.AppContainer, conte
             "Exported ${state.transactions.size} transactions"
         }.getOrElse { "Export failed: ${it.message}" }
     }
+}
+
+/** Downloads go to the browser, which saves the APK and offers to open it. */
+private fun downloadUpdate(context: Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }

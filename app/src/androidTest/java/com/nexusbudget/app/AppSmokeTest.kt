@@ -25,7 +25,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nexusbudget.app.data.ImportFile
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -75,16 +74,21 @@ class AppSmokeTest {
             node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
             node.children.flatMap(::texts)
 
-    /** Fails if any on-screen text matching [text] is clipped, for example a tab label that doesn't fit. */
-    private fun assertNotCutOff(text: String) {
-        val nodes = rule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes()
-        assertTrue("\"$text\" isn't on screen", nodes.isNotEmpty())
-        nodes.forEach { node ->
-            val layouts = mutableListOf<TextLayoutResult>()
-            node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
-            val overflow = layouts.any { it.hasVisualOverflow }
-            assertFalse("\"$text\" is cut off", overflow)
+    /** Fails if any on-screen text matching [texts] is clipped, for example a tab label that doesn't fit. */
+    private fun assertNotCutOff(vararg texts: String) {
+        val problems = texts.flatMap { text ->
+            val nodes = rule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes()
+            if (nodes.isEmpty()) return@flatMap listOf("\"$text\" isn't on screen")
+            nodes.mapNotNull { node ->
+                val layouts = mutableListOf<TextLayoutResult>()
+                node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+                val layout = layouts.firstOrNull()?.takeIf { it.hasVisualOverflow } ?: return@mapNotNull null
+                "\"$text\" at ${node.boundsInRoot}: overflows width=${layout.didOverflowWidth} height=${layout.didOverflowHeight}, " +
+                    "box=${layout.size}, text=${layout.multiParagraph.width}x${layout.multiParagraph.height}, " +
+                    "lines=${layout.lineCount}, ${layout.layoutInput.constraints}"
+            }
         }
+        assertTrue("Cut-off text: ${problems.joinToString(" | ")}", problems.isEmpty())
     }
 
     private fun screenshot(name: String) {
@@ -140,7 +144,7 @@ class AppSmokeTest {
 
         // Budget and its sub-tabs
         openTab("budget", "Left to budget")
-        listOf("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI").forEach(::assertNotCutOff)
+        assertNotCutOff("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI")
         screenshot("06-budget")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")

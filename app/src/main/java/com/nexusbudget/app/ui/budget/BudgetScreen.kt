@@ -97,7 +97,7 @@ fun BudgetScreen(nav: NavHostController) {
             // large font never cuts a label off.
             ScrollableTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, edgePadding = 0.dp) {
                 tabTitles.forEachIndexed { index, title ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1, softWrap = false) })
+                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1) })
                 }
             }
             when (tab) {

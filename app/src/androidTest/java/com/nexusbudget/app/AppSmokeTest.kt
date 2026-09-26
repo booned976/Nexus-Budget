@@ -74,7 +74,10 @@ class AppSmokeTest {
             node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
             node.children.flatMap(::texts)
 
-    /** Fails if any on-screen text matching [texts] is clipped, for example a tab label that doesn't fit. */
+    /**
+     * Fails if any on-screen text matching [texts] doesn't fit on one line in the space it's given, for
+     * example a tab label cut down to "Transactio".
+     */
     private fun assertNotCutOff(vararg texts: String) {
         val problems = texts.flatMap { text ->
             val nodes = rule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes()
@@ -82,13 +85,22 @@ class AppSmokeTest {
             nodes.mapNotNull { node ->
                 val layouts = mutableListOf<TextLayoutResult>()
                 node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
-                val layout = layouts.firstOrNull()?.takeIf { it.hasVisualOverflow } ?: return@mapNotNull null
-                "\"$text\" at ${node.boundsInRoot}: overflows width=${layout.didOverflowWidth} height=${layout.didOverflowHeight}, " +
-                    "box=${layout.size}, text=${layout.multiParagraph.width}x${layout.multiParagraph.height}, " +
-                    "lines=${layout.lineCount}, ${layout.layoutInput.constraints}"
+                val layout = layouts.firstOrNull() ?: return@mapNotNull null
+                // Don't use hasVisualOverflow: centered text reports overflow even when every letter shows.
+                val needed = layout.multiParagraph.intrinsics.maxIntrinsicWidth
+                val clipped = layout.multiParagraph.didExceedMaxLines || layout.lineCount > 1 ||
+                    (0 until layout.lineCount).any { layout.isLineEllipsized(it) } || needed > layout.size.width + 1
+                if (!clipped) null else "\"$text\" needs ${needed}px but has ${layout.size.width}px (lines=${layout.lineCount})"
             }
         }
         assertTrue("Cut-off text: ${problems.joinToString(" | ")}", problems.isEmpty())
+    }
+
+    /** Scrolls the screen's list to [text], retrying while the list is still filling in. */
+    private fun scrollTo(text: String) {
+        rule.waitUntil(timeoutMillis = 20_000) {
+            runCatching { rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
+        }
     }
 
     private fun screenshot(name: String) {
@@ -124,7 +136,7 @@ class AppSmokeTest {
         waitFor("Safe to spend", timeout = 30_000)
         waitFor("Net worth")
         screenshot("01-home")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Recent activity"))
+        scrollTo("Recent activity")
         screenshot("02-home-scrolled")
 
         // Accounts
@@ -136,7 +148,7 @@ class AppSmokeTest {
         screenshot("04-account-detail")
         pressBack()
         waitFor("Everyday Checking")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Federal Student Loan"))
+        scrollTo("Federal Student Loan")
         rule.onNodeWithText("Federal Student Loan").performClick()
         waitFor("Debt details")
         screenshot("05-student-loan")
@@ -159,9 +171,9 @@ class AppSmokeTest {
         // Plans
         openTab("plans", "Recommendations")
         screenshot("10-plans")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Debt-free by"))
+        scrollTo("Debt-free by")
         screenshot("11-debt-plan")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Cash flow, next 30 days"))
+        scrollTo("Cash flow, next 30 days")
         screenshot("12-forecast")
 
         // Assistant (no API key yet)
@@ -190,7 +202,7 @@ class AppSmokeTest {
         screenshot("17-import-done")
         rule.onNodeWithText("View accounts").performClick()
         waitFor("Add account")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("••8642", substring = true))
+        scrollTo("••8642")
         screenshot("18-imported-account")
     }
 

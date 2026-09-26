@@ -2,6 +2,7 @@ package com.nexusbudget.app
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,9 +21,11 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nexusbudget.app.data.ImportFile
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,6 +74,35 @@ class AppSmokeTest {
             node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
             node.children.flatMap(::texts)
 
+    /**
+     * Fails if any on-screen text matching [texts] doesn't fit on one line in the space it's given, for
+     * example a tab label cut down to "Transactio".
+     */
+    private fun assertNotCutOff(vararg texts: String) {
+        val problems = texts.flatMap { text ->
+            val nodes = rule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes()
+            if (nodes.isEmpty()) return@flatMap listOf("\"$text\" isn't on screen")
+            nodes.mapNotNull { node ->
+                val layouts = mutableListOf<TextLayoutResult>()
+                node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+                val layout = layouts.firstOrNull() ?: return@mapNotNull null
+                // Don't use hasVisualOverflow: centered text reports overflow even when every letter shows.
+                val needed = layout.multiParagraph.intrinsics.maxIntrinsicWidth
+                val clipped = layout.multiParagraph.didExceedMaxLines || layout.lineCount > 1 ||
+                    (0 until layout.lineCount).any { layout.isLineEllipsized(it) } || needed > layout.size.width + 1
+                if (!clipped) null else "\"$text\" needs ${needed}px but has ${layout.size.width}px (lines=${layout.lineCount})"
+            }
+        }
+        assertTrue("Cut-off text: ${problems.joinToString(" | ")}", problems.isEmpty())
+    }
+
+    /** Scrolls the screen's list to [text], retrying while the list is still filling in. */
+    private fun scrollTo(text: String) {
+        rule.waitUntil(timeoutMillis = 20_000) {
+            runCatching { rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
+        }
+    }
+
     private fun screenshot(name: String) {
         rule.waitForIdle()
         runCatching {
@@ -103,7 +136,7 @@ class AppSmokeTest {
         waitFor("Safe to spend", timeout = 30_000)
         waitFor("Net worth")
         screenshot("01-home")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Recent activity"))
+        scrollTo("Recent activity")
         screenshot("02-home-scrolled")
 
         // Accounts
@@ -115,7 +148,7 @@ class AppSmokeTest {
         screenshot("04-account-detail")
         pressBack()
         waitFor("Everyday Checking")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Federal Student Loan"))
+        scrollTo("Federal Student Loan")
         rule.onNodeWithText("Federal Student Loan").performClick()
         waitFor("Debt details")
         screenshot("05-student-loan")
@@ -123,6 +156,7 @@ class AppSmokeTest {
 
         // Budget and its sub-tabs
         openTab("budget", "Left to budget")
+        assertNotCutOff("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI")
         screenshot("06-budget")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")
@@ -137,9 +171,9 @@ class AppSmokeTest {
         // Plans
         openTab("plans", "Recommendations")
         screenshot("10-plans")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Debt-free by"))
+        scrollTo("Debt-free by")
         screenshot("11-debt-plan")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Cash flow, next 30 days"))
+        scrollTo("Cash flow, next 30 days")
         screenshot("12-forecast")
 
         // Assistant (no API key yet)
@@ -168,7 +202,7 @@ class AppSmokeTest {
         screenshot("17-import-done")
         rule.onNodeWithText("View accounts").performClick()
         waitFor("Add account")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("••8642", substring = true))
+        scrollTo("••8642")
         screenshot("18-imported-account")
     }
 

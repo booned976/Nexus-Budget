@@ -169,7 +169,12 @@ class AppSmokeTest {
         openTab("budget", "Left to budget")
         assertNotCutOff("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI")
         assertSubTabsCentered(count = 4)
+        // Insights explain the numbers, and each category says why its budget is what it is.
+        waitFor("Insights")
+        waitFor("Expected income")
         screenshot("06-budget")
+        scrollTo("Covers your")
+        screenshot("06b-budget-reasons")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")
         screenshot("07-transactions")
@@ -183,8 +188,18 @@ class AppSmokeTest {
         // Plans
         openTab("plans", "Recommendations")
         screenshot("10-plans")
-        scrollTo("Debt-free by")
+        // Recommendation buttons go where they say: the payoff plan further down this screen...
+        scrollTo("Open payoff plan")
+        rule.onNodeWithText("Open payoff plan").performClick()
+        waitFor("Debt-free by")
         screenshot("11-debt-plan")
+        // ...and the goal a recommendation is about.
+        scrollTo("Adjust goal")
+        rule.onNodeWithText("Adjust goal").performClick()
+        waitFor("Edit goal")
+        screenshot("11b-goal-from-recommendation")
+        pressBack()
+        waitFor("Adjust goal")
         scrollTo("Cash flow, next 30 days")
         screenshot("12-forecast")
 

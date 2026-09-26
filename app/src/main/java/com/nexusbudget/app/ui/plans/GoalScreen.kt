@@ -65,6 +65,14 @@ fun GoalScreen(nav: NavHostController, goalId: String) {
     var addAmount by remember { mutableStateOf("") }
 
     LaunchedEffect(goalId) {
+        // A recommendation can start a new goal with suggested values.
+        val draft = container.goalDraft.value
+        if (goalId.isEmpty() && draft != null) {
+            container.goalDraft.value = null
+            type = draft.type
+            name = draft.type.label
+            draft.target?.let { target = centsToInput(it) }
+        }
         if (goalId.isNotEmpty()) {
             container.finance.goal(goalId)?.let { g ->
                 existing = g

@@ -2,6 +2,7 @@ package com.nexusbudget.app
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,9 +21,12 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nexusbudget.app.data.ImportFile
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,6 +74,18 @@ class AppSmokeTest {
         node.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } +
             node.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty() +
             node.children.flatMap(::texts)
+
+    /** Fails if any on-screen text matching [text] is clipped, for example a tab label that doesn't fit. */
+    private fun assertNotCutOff(text: String) {
+        val nodes = rule.onAllNodesWithText(text, useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("\"$text\" isn't on screen", nodes.isNotEmpty())
+        nodes.forEach { node ->
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(layouts)
+            val overflow = layouts.any { it.hasVisualOverflow }
+            assertFalse("\"$text\" is cut off", overflow)
+        }
+    }
 
     private fun screenshot(name: String) {
         rule.waitForIdle()
@@ -123,6 +140,7 @@ class AppSmokeTest {
 
         // Budget and its sub-tabs
         openTab("budget", "Left to budget")
+        listOf("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI").forEach(::assertNotCutOff)
         screenshot("06-budget")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")

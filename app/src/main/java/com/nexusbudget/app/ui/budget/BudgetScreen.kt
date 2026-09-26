@@ -27,10 +27,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,8 +69,8 @@ import com.nexusbudget.core.engine.BudgetPlanner
 import com.nexusbudget.core.engine.CategoryBudgetStatus
 import com.nexusbudget.core.model.Category
 import com.nexusbudget.core.model.CategoryKind
-import kotlinx.coroutines.launch
 import java.time.YearMonth
+import kotlinx.coroutines.launch
 
 private val tabTitles = listOf("Budget", "Transactions", "Recurring", "Trends")
 
@@ -93,9 +93,11 @@ fun BudgetScreen(nav: NavHostController) {
     ScreenScaffold(title = "Budget", topLevel = true, snackbarHostState = snackbar) { padding ->
         val current = state ?: return@ScreenScaffold
         Column(Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
+            // Tabs size to their labels and scroll sideways when they don't fit, so a narrow screen or
+            // large font never cuts a label off.
+            ScrollableTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, edgePadding = 0.dp) {
                 tabTitles.forEachIndexed { index, title ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1) })
+                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1, softWrap = false) })
                 }
             }
             when (tab) {

@@ -29,12 +29,13 @@ No Android and no network: pure functions over plain data classes. Amounts are a
 | `CashFlowAnalyzer` | Monthly income, spending and essential spending, 3-month averages, savings rate |
 | `BudgetEngine` | Per-category budget status with rollover, pace-based warnings (fixed bills are exempt), left-to-budget |
 | `BudgetPlanner` | Starter budget from real spending, trimmed toward 50/30/20 |
+| `BudgetInsights` | Plain-language reasoning for the budget screen: income basis, 50/30/20 split, flexible-spending pace, over-budget categories, and why each category's amount is what it is |
 | `RecurringDetector` | Groups by merchant and direction; finds weekly to yearly cadences; separates variable bills from habits; next dates, subscriptions, price changes |
 | `DebtPayoffEngine` | Month-by-month simulation (avalanche, snowball, custom, minimums-only) with rollover, lump sums, feasibility detection, and a binary search for "extra needed by date" |
 | `GoalEngine` | Projected completion, required monthly amount, status |
 | `SafeToSpendCalculator` | Spendable cash − bills before next payday (detected series plus debt due dates, de-duplicated) − prorated goal contributions |
 | `CashFlowForecaster` | 30-day projected checking balance from recurring events and typical daily spending |
-| `Advisor` | Rule-based recommendations with stable ids, severity and estimated yearly impact |
+| `Advisor` | Rule-based recommendations with stable ids, severity, estimated yearly impact, and a specific target for each button (a category, a goal, a prefilled new goal or a section) |
 | `FinancialPicture` | Computes all of the above in one pass for the UI and the AI tools |
 | `OfxImporter` | OFX, QFX and QBO statement files (SGML and XML): bank, card and brokerage accounts, balances, transactions, positions and cash; a hashed account key for matching later imports |
 | `CsvImporter` | RFC 4180 parsing, header detection, date formats, debit/credit columns |

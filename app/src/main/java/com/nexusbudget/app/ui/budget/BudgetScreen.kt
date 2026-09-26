@@ -11,14 +11,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -41,10 +47,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.nexusbudget.app.BudgetRequest
 import com.nexusbudget.app.data.FinanceState
 import com.nexusbudget.app.ui.LocalAppContainer
 import com.nexusbudget.app.ui.ScreenScaffold
@@ -63,9 +71,13 @@ import com.nexusbudget.app.ui.components.money
 import com.nexusbudget.app.ui.label
 import com.nexusbudget.app.ui.theme.LocalChartColors
 import com.nexusbudget.core.engine.BudgetEngine
+import com.nexusbudget.core.engine.BudgetInsight
+import com.nexusbudget.core.engine.BudgetInsights
 import com.nexusbudget.core.engine.BudgetPlan
 import com.nexusbudget.core.engine.BudgetPlanner
 import com.nexusbudget.core.engine.CategoryBudgetStatus
+import com.nexusbudget.core.engine.CategoryReason
+import com.nexusbudget.core.engine.InsightTone
 import com.nexusbudget.core.model.Category
 import com.nexusbudget.core.model.CategoryKind
 import java.time.YearMonth
@@ -77,16 +89,30 @@ private val tabTitles = listOf("Budget", "Transactions", "Recurring", "Trends")
 fun BudgetScreen(nav: NavHostController) {
     val container = LocalAppContainer.current
     val state by container.finance.state.collectAsStateWithLifecycle()
-    val requested by container.requestedBudgetTab.collectAsStateWithLifecycle()
+    val request by container.budgetRequest.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(0) }
     var categoryFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var editRequest by remember { mutableStateOf<String?>(null) }
+    var buildRequest by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
-    LaunchedEffect(requested) {
-        requested?.let {
-            tab = it
-            container.requestedBudgetTab.value = null
+    // Requests from recommendations and Home cards: open a sub-tab, a category's editor, or the budget builder.
+    LaunchedEffect(request) {
+        when (val r = request ?: return@LaunchedEffect) {
+            is BudgetRequest.ShowTab -> {
+                tab = r.tab
+                r.categoryFilter?.let { categoryFilter = it }
+            }
+            is BudgetRequest.EditCategory -> {
+                tab = 0
+                editRequest = r.categoryId
+            }
+            BudgetRequest.BuildBudget -> {
+                tab = 0
+                buildRequest = true
+            }
         }
+        container.budgetRequest.value = null
     }
 
     ScreenScaffold(title = "Budget", topLevel = true, snackbarHostState = snackbar) { padding ->
@@ -94,7 +120,13 @@ fun BudgetScreen(nav: NavHostController) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             FitTabRow(tabTitles, selected = tab, onSelect = { tab = it })
             when (tab) {
-                0 -> BudgetTab(current, onShowTransactions = { categoryFilter = it; tab = 1 })
+                0 -> BudgetTab(
+                    current,
+                    onShowTransactions = { categoryFilter = it; tab = 1 },
+                    editRequest = editRequest,
+                    buildRequest = buildRequest,
+                    onRequestHandled = { editRequest = null; buildRequest = false },
+                )
                 1 -> TransactionsTab(nav, current, categoryFilter, onClearFilter = { categoryFilter = null }, snackbar = snackbar)
                 2 -> RecurringTab(current)
                 else -> TrendsTab(current, onCategory = { categoryFilter = it; tab = 1 })
@@ -104,21 +136,42 @@ fun BudgetScreen(nav: NavHostController) {
 }
 
 @Composable
-private fun BudgetTab(state: FinanceState, onShowTransactions: (String) -> Unit) {
+private fun BudgetTab(
+    state: FinanceState,
+    onShowTransactions: (String) -> Unit,
+    editRequest: String?,
+    buildRequest: Boolean,
+    onRequestHandled: () -> Unit,
+) {
     val container = LocalAppContainer.current
     val scope = rememberCoroutineScope()
-    var month by rememberSaveable { mutableStateOf(YearMonth.from(state.picture.today).toString()) }
+    val currentMonth = YearMonth.from(state.picture.today)
+    var month by rememberSaveable { mutableStateOf(currentMonth.toString()) }
     val selectedMonth = YearMonth.parse(month)
+    val isCurrentMonth = selectedMonth == state.picture.budget.month
+    val picture = state.picture
     val summary = remember(state, month) {
-        if (selectedMonth == state.picture.budget.month) {
-            state.picture.budget
+        if (isCurrentMonth) {
+            picture.budget
         } else {
-            BudgetEngine.summarize(selectedMonth, state.picture.today, state.transactions, state.categories, state.budgets, state.picture.budget.expectedIncome)
+            BudgetEngine.summarize(selectedMonth, picture.today, state.transactions, state.categories, state.budgets, picture.budget.expectedIncome, picture.fixedCategories)
         }
+    }
+    val insights = remember(summary) { BudgetInsights.overview(summary, picture.stats, picture.recurring, picture.fixedCategories, isCurrentMonth) }
+    val reasons = remember(summary) {
+        summary.categories.associate { it.category.id to BudgetInsights.reasonFor(it, picture.stats, picture.recurring, picture.fixedCategories, isCurrentMonth) }
     }
     var editing by remember { mutableStateOf<Category?>(null) }
     var picking by remember { mutableStateOf(false) }
     var plan by remember { mutableStateOf<BudgetPlan?>(null) }
+
+    LaunchedEffect(editRequest, buildRequest) {
+        if (editRequest == null && !buildRequest) return@LaunchedEffect
+        month = currentMonth.toString()
+        editRequest?.let { id -> state.categories.find(id)?.let { editing = it } }
+        if (buildRequest) plan = BudgetPlanner.suggest(picture.stats, state.categories, picture.recurring)
+        onRequestHandled()
+    }
 
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -175,6 +228,9 @@ private fun BudgetTab(state: FinanceState, onShowTransactions: (String) -> Unit)
                 }
             }
         }
+        if (insights.isNotEmpty()) {
+            item(key = "insights") { InsightsCard(insights) }
+        }
         if (!summary.hasBudgets) {
             item {
                 NexusCard {
@@ -203,7 +259,7 @@ private fun BudgetTab(state: FinanceState, onShowTransactions: (String) -> Unit)
                     Text(group, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 4.dp))
                     statuses.forEachIndexed { index, status ->
                         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        BudgetRow(status, onClick = { editing = status.category })
+                        BudgetRow(status, reasons[status.category.id]?.summary, onClick = { editing = status.category })
                     }
                 }
             }
@@ -239,6 +295,7 @@ private fun BudgetTab(state: FinanceState, onShowTransactions: (String) -> Unit)
             currentAmount = target?.monthlyAmount,
             rollover = target?.rollover ?: false,
             average = state.picture.stats.avgSpendingByCategory[category.id],
+            reason = reasons[category.id],
             onSave = { amount, rollover ->
                 scope.launch { container.finance.setBudget(category.id, amount, rollover) }
                 editing = null
@@ -279,7 +336,7 @@ private fun Mini(label: String, cents: Long) {
 }
 
 @Composable
-private fun BudgetRow(status: CategoryBudgetStatus, onClick: () -> Unit) {
+private fun BudgetRow(status: CategoryBudgetStatus, reason: String?, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -307,6 +364,44 @@ private fun BudgetRow(status: CategoryBudgetStatus, onClick: () -> Unit) {
         }
         Spacer(Modifier.height(6.dp))
         ProgressMeter(status.progress, color = healthColor(status.health))
+        if (reason != null) {
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    Icons.Outlined.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(14.dp).padding(top = 2.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** Plain-language explanations of the numbers on this screen. */
+@Composable
+private fun InsightsCard(insights: List<BudgetInsight>) {
+    val colors = LocalChartColors.current
+    NexusCard {
+        Text("Insights", style = MaterialTheme.typography.titleSmall)
+        insights.forEach { insight ->
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.Top) {
+                val (icon, tint) = when (insight.tone) {
+                    InsightTone.GOOD -> Icons.Outlined.CheckCircle to colors.good
+                    InsightTone.WARNING -> Icons.Outlined.WarningAmber to colors.warning
+                    InsightTone.INFO -> Icons.Outlined.Info to MaterialTheme.colorScheme.primary
+                }
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(insight.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(insight.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
@@ -316,6 +411,7 @@ private fun BudgetEditDialog(
     currentAmount: Long?,
     rollover: Boolean,
     average: Long?,
+    reason: CategoryReason?,
     onSave: (Long, Boolean) -> Unit,
     onRemove: (() -> Unit)?,
     onShowTransactions: () -> Unit,
@@ -327,7 +423,14 @@ private fun BudgetEditDialog(
         onDismissRequest = onDismiss,
         title = { Text("${category.icon} ${category.name}") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (reason != null) {
+                    Text("Why this amount", style = MaterialTheme.typography.labelLarge)
+                    reason.details.forEach { line ->
+                        Text("• $line", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
                 MoneyField(amount, { amount = it }, "Monthly budget", supportingText = average?.let { "You usually spend ${money(it)} a month" })
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {

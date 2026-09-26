@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Celebration
@@ -33,12 +34,14 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.nexusbudget.app.PlansSection
 import com.nexusbudget.app.data.FinanceState
 import com.nexusbudget.app.ui.LocalAppContainer
 import com.nexusbudget.app.ui.Routes
@@ -63,21 +66,36 @@ import com.nexusbudget.core.engine.DebtPayoffEngine
 import com.nexusbudget.core.engine.GoalStatus
 import com.nexusbudget.core.engine.PayoffStrategy
 import com.nexusbudget.core.model.Money
-import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import kotlin.math.ceil
 import kotlin.math.roundToLong
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlansScreen(nav: NavHostController) {
     val container = LocalAppContainer.current
     val state by container.finance.state.collectAsStateWithLifecycle()
+    val request by container.plansRequest.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+
+    // A recommendation (here or on Home) asked for a section: scroll to it once the list is laid out.
+    LaunchedEffect(request, state != null) {
+        val section = request ?: return@LaunchedEffect
+        val recommendations = state?.picture?.recommendations ?: return@LaunchedEffect
+        val debtHeader = 1 + maxOf(recommendations.size, 1)
+        val target = if (section == PlansSection.DEBT_PLAN) debtHeader else debtHeader + 2
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > target }
+        listState.animateScrollToItem(target)
+        container.plansRequest.value = null
+    }
 
     ScreenScaffold(title = "Plans", topLevel = true) { padding ->
         val current = state ?: return@ScreenScaffold
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -102,10 +120,11 @@ fun PlansScreen(nav: NavHostController) {
                 )
             }
 
-            item { SectionHeader("Debt payoff plan") }
-            item { DebtPlanner(current, nav) }
+            // Keep these right after the recommendations: the scroll above counts on their positions.
+            item(key = "debt-header") { SectionHeader("Debt payoff plan") }
+            item(key = "debt-planner") { DebtPlanner(current, nav) }
 
-            item { SectionHeader("Goals", actionLabel = "New goal", onAction = { nav.navigate(Routes.goal()) }) }
+            item(key = "goals-header") { SectionHeader("Goals", actionLabel = "New goal", onAction = { nav.navigate(Routes.goal()) }) }
             if (current.picture.goals.isEmpty()) {
                 item {
                     NexusCard(onClick = { nav.navigate(Routes.goal()) }) {

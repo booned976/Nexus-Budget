@@ -57,6 +57,19 @@ object BudgetEngine {
     )
 
     /**
+     * Fixed-bill categories for this household: the usual ones, plus any category that is mostly a
+     * steady monthly bill (at least 75% of its average spending).
+     */
+    fun fixedCategories(stats: CashFlowStats, recurring: List<RecurringSeries>): Set<String> =
+        fixedBillCategories + recurring
+            .filter { it.isBill && !it.amountVaries && it.frequency == Frequency.MONTHLY }
+            .mapNotNull { it.categoryId }
+            .filter { id ->
+                val average = stats.avgSpendingByCategory[id] ?: return@filter false
+                recurring.filter { it.categoryId == id }.sumOf { -it.monthlyAmount } >= average * 0.75
+            }
+
+    /**
      * @param fixedCategoryIds categories paid as fixed bills; they're only flagged once actually over budget
      */
     fun summarize(

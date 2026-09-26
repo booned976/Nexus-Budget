@@ -28,6 +28,8 @@ data class FinancialPicture(
     val payoff: PayoffComparison?,
     val recommendations: List<Recommendation>,
     val emergencyFundMonths: Double?,
+    /** Categories paid as fixed bills, which aren't judged by spending pace. */
+    val fixedCategories: Set<String> = BudgetEngine.fixedBillCategories,
 ) {
     /** Bills and debt payments due in the next two weeks, from any account. */
     val upcomingBills: List<UpcomingBill>
@@ -53,9 +55,7 @@ data class FinancialPicture(
             val stats = CashFlowAnalyzer.analyze(transactions, categories, today)
             val recurring = RecurringDetector.detect(transactions, categories, today, dismissedRecurring)
             val expectedIncome = recurring.filter { it.isIncome }.sumOf { it.monthlyAmount }.takeIf { it > 0 } ?: stats.avgMonthlyIncome
-            val fixedCategories = BudgetEngine.fixedBillCategories +
-                recurring.filter { it.isBill && !it.amountVaries && it.frequency == Frequency.MONTHLY }.mapNotNull { it.categoryId }
-                    .filter { id -> stats.avgSpendingByCategory[id]?.let { avg -> recurring.filter { it.categoryId == id }.sumOf { -it.monthlyAmount } >= avg * 0.75 } ?: false }
+            val fixedCategories = BudgetEngine.fixedCategories(stats, recurring)
             val budget = BudgetEngine.summarize(YearMonth.from(today), today, transactions, categories, budgets, expectedIncome, fixedCategories)
             val safe = SafeToSpendCalculator.calculate(visibleAccounts, recurring, goals, today)
             // Card purchases are forecast as everyday spending (they reach checking via the card payment),
@@ -93,6 +93,7 @@ data class FinancialPicture(
                 payoff = payoff,
                 recommendations = recommendations,
                 emergencyFundMonths = Advisor.emergencyMonths(visibleAccounts, stats.avgEssentialSpending),
+                fixedCategories = fixedCategories,
             )
         }
     }

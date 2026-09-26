@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -107,10 +108,12 @@ class AppSmokeTest {
         assertTrue("Tabs aren't centered: ${left}px on the left, ${right}px on the right", left >= 0f && abs(left - right) <= 2f)
     }
 
-    /** Scrolls the screen's list to [text], retrying while the list is still filling in. */
+    /** Scrolls the screen's vertical list to [text], retrying while the list is still filling in. */
     private fun scrollTo(text: String) {
+        // Only vertical lists: a sideways-scrolling tab row can come first on the screen.
+        val verticalList = hasScrollAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)
         rule.waitUntil(timeoutMillis = 20_000) {
-            runCatching { rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
+            runCatching { rule.onAllNodes(verticalList).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
         }
     }
 
@@ -169,7 +172,12 @@ class AppSmokeTest {
         openTab("budget", "Left to budget")
         assertNotCutOff("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI")
         assertSubTabsCentered(count = 4)
+        // Insights explain the numbers, and each category says why its budget is what it is.
+        waitFor("Insights")
+        waitFor("Expected income")
         screenshot("06-budget")
+        scrollTo("Covers your")
+        screenshot("06b-budget-reasons")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")
         screenshot("07-transactions")
@@ -183,8 +191,18 @@ class AppSmokeTest {
         // Plans
         openTab("plans", "Recommendations")
         screenshot("10-plans")
-        scrollTo("Debt-free by")
+        // Recommendation buttons go where they say: the payoff plan further down this screen...
+        scrollTo("Open payoff plan")
+        rule.onNodeWithText("Open payoff plan").performClick()
+        waitFor("Debt-free by")
         screenshot("11-debt-plan")
+        // ...and the goal a recommendation is about.
+        scrollTo("Adjust goal")
+        rule.onNodeWithText("Adjust goal").performClick()
+        waitFor("Edit goal")
+        screenshot("11b-goal-from-recommendation")
+        pressBack()
+        waitFor("Adjust goal")
         scrollTo("Cash flow, next 30 days")
         screenshot("12-forecast")
 

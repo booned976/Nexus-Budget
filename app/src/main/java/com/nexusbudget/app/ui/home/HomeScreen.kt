@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.nexusbudget.app.BudgetRequest
 import com.nexusbudget.app.data.ConnectionStatus
 import com.nexusbudget.app.data.FinanceState
 import com.nexusbudget.app.ui.LocalAppContainer
@@ -67,8 +68,8 @@ import com.nexusbudget.app.ui.short
 import com.nexusbudget.app.ui.theme.HeroNumber
 import com.nexusbudget.app.ui.theme.LocalChartColors
 import com.nexusbudget.core.model.AccountGroup
-import kotlinx.coroutines.launch
 import java.time.LocalTime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +136,7 @@ fun HomeScreen(nav: NavHostController) {
                 item { SafeToSpendCard(current) }
                 item { NetWorthCard(current, onClick = { nav.navigateToTab(Routes.ACCOUNTS) }) }
                 item { AccountGroupsGrid(current, onClick = { nav.navigateToTab(Routes.ACCOUNTS) }) }
-                item { BudgetCard(current, onClick = { container.requestedBudgetTab.value = 0; nav.navigateToTab(Routes.BUDGET) }) }
+                item { BudgetCard(current, onClick = { container.budgetRequest.value = BudgetRequest.ShowTab(0); nav.navigateToTab(Routes.BUDGET) }) }
 
                 val recs = current.picture.recommendations.take(3)
                 if (recs.isNotEmpty()) {
@@ -151,13 +152,13 @@ fun HomeScreen(nav: NavHostController) {
                     }
                 }
 
-                item { UpcomingBillsCard(current, onClick = { container.requestedBudgetTab.value = 2; nav.navigateToTab(Routes.BUDGET) }) }
+                item { UpcomingBillsCard(current, onClick = { container.budgetRequest.value = BudgetRequest.ShowTab(2); nav.navigateToTab(Routes.BUDGET) }) }
                 if (current.picture.goals.isNotEmpty()) item { GoalsRow(current, onClick = { nav.navigate(Routes.goal(it)) }) }
                 item {
                     RecentTransactions(
                         current,
                         onClick = { nav.navigate(Routes.transaction(it)) },
-                        onSeeAll = { container.requestedBudgetTab.value = 1; nav.navigateToTab(Routes.BUDGET) },
+                        onSeeAll = { container.budgetRequest.value = BudgetRequest.ShowTab(1); nav.navigateToTab(Routes.BUDGET) },
                     )
                 }
                 item { Spacer(Modifier.height(8.dp)) }

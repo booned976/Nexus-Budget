@@ -42,8 +42,14 @@ class AppContainer(context: Context) {
     /** A question queued for the assistant from elsewhere in the app ("Ask AI" buttons). */
     val pendingAssistantPrompt = MutableStateFlow<String?>(null)
 
-    /** Which Budget sub-tab to open next (0 budget, 1 transactions, 2 recurring, 3 trends). */
-    val requestedBudgetTab = MutableStateFlow<Int?>(null)
+    /** What the Budget tab should show next. */
+    val budgetRequest = MutableStateFlow<BudgetRequest?>(null)
+
+    /** Which part of the Plans tab to scroll to next. */
+    val plansRequest = MutableStateFlow<PlansSection?>(null)
+
+    /** Suggested values for the next new goal. */
+    val goalDraft = MutableStateFlow<GoalDraft?>(null)
 
     /** A statement file opened or shared into the app, waiting for the import screen. */
     val pendingImport = MutableStateFlow<ImportFile?>(null)

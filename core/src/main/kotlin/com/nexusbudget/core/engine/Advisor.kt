@@ -15,7 +15,11 @@ import kotlin.math.roundToLong
 
 enum class Severity { URGENT, IMPORTANT, SUGGESTION, POSITIVE }
 
-enum class RecommendationAction { DEBT_PLAN, BUDGET, GOALS, RECURRING, TRANSACTIONS, ACCOUNTS, ASSISTANT, NONE }
+/**
+ * Where a recommendation's button leads. BUDGET opens the category in [Recommendation.categoryId] when
+ * set; GOALS opens [Recommendation.goalId], or a new goal from [Recommendation.newGoalType], or the list.
+ */
+enum class RecommendationAction { DEBT_PLAN, BUDGET, BUILD_BUDGET, GOALS, RECURRING, TRANSACTIONS, ACCOUNTS, ASSISTANT, NONE }
 
 data class Recommendation(
     /** Stable id so a dismissed recommendation stays dismissed (until its situation changes month). */
@@ -30,6 +34,11 @@ data class Recommendation(
     /** A question to hand to the AI assistant for a personalized walkthrough. */
     val assistantPrompt: String? = null,
     val categoryId: String? = null,
+    /** An existing goal the button opens. */
+    val goalId: String? = null,
+    /** A new goal the button starts, with a suggested target. */
+    val newGoalType: GoalType? = null,
+    val newGoalTarget: Long? = null,
 )
 
 data class AdvisorInput(
@@ -118,7 +127,8 @@ object Advisor {
         if (essential <= 0) return null
         val liquid = input.accounts.filter { it.type == AccountType.SAVINGS && !it.isHidden }.sumOf { it.balance }
         val months = liquid.toDouble() / essential
-        val hasGoal = input.goals.any { it.goal.type == GoalType.EMERGENCY_FUND }
+        val existingGoal = input.goals.firstOrNull { it.goal.type == GoalType.EMERGENCY_FUND }?.goal
+        val hasGoal = existingGoal != null
         val target = GoalEngine.emergencyFundTarget(essential)
         return when {
             months < 1.0 -> Recommendation(
@@ -131,6 +141,9 @@ object Advisor {
                 actionLabel = if (hasGoal) "View goal" else "Create goal",
                 yearlyImpact = essential,
                 assistantPrompt = "Help me build an emergency fund. How much should I save each month based on my budget?",
+                goalId = existingGoal?.id,
+                newGoalType = GoalType.EMERGENCY_FUND.takeIf { !hasGoal },
+                newGoalTarget = target.takeIf { !hasGoal },
             )
             months < 3.0 && !hasGoal -> Recommendation(
                 id = "efund-grow",
@@ -140,6 +153,8 @@ object Advisor {
                 action = RecommendationAction.GOALS,
                 actionLabel = "Create goal",
                 yearlyImpact = essential / 2,
+                newGoalType = GoalType.EMERGENCY_FUND,
+                newGoalTarget = target,
             )
             else -> null
         }
@@ -217,7 +232,7 @@ object Advisor {
                             "You have ${fmt(status.available)} left for ${budget.daysLeft} days."
                     },
                     action = RecommendationAction.BUDGET,
-                    actionLabel = "Open budget",
+                    actionLabel = "Adjust budget",
                     yearlyImpact = (status.projected - status.limit).coerceAtLeast(0) * 12,
                     categoryId = status.category.id,
                 )
@@ -234,7 +249,7 @@ object Advisor {
             title = "Create your first budget in one tap",
             message = "We can build a budget from your last few months of spending that leaves " +
                 "${fmt(plan.savings.coerceAtLeast(0))}/month for savings and debt payoff. You can adjust any category afterwards.",
-            action = RecommendationAction.BUDGET,
+            action = RecommendationAction.BUILD_BUDGET,
             actionLabel = "Build my budget",
             yearlyImpact = plan.savings.coerceAtLeast(0) * 12,
         )
@@ -317,6 +332,7 @@ object Advisor {
                     action = RecommendationAction.GOALS,
                     actionLabel = "Adjust goal",
                     yearlyImpact = needed * 12 / 2,
+                    goalId = projection.goal.id,
                 )
             }
 
@@ -361,7 +377,7 @@ object Advisor {
             title = "Put ${fmt(excess)} of idle cash to work",
             message = "Checking holds more than two months of spending. Moving the extra to a high-yield savings account or a goal could earn around ${fmt(yearly)} a year.",
             action = RecommendationAction.GOALS,
-            actionLabel = "Pick a goal",
+            actionLabel = "See goals",
             yearlyImpact = yearly,
         )
     }

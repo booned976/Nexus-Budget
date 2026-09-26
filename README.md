@@ -42,6 +42,7 @@ Android 8.0 or newer. To update later, go to **Settings → Check for updates** 
 
 ### Budget
 - **Monthly category budgets** with pace tracking. You're warned when you're spending faster than the month is passing.
+- **Insights** explain the numbers: where expected income comes from, how your budget splits between needs, wants and savings (50/30/20), whether flexible spending is on pace, and why each category's budget is set where it is.
 - **Left to budget**: your expected income minus what's assigned, so every dollar has a job.
 - **Rollover**: carry unspent money (or overspending) into next month, per category.
 - **Build my budget in one tap:** budgets are generated from your real spending, then flexible categories are trimmed so at least 20% of income goes to savings and debt payoff.
@@ -50,7 +51,7 @@ Android 8.0 or newer. To update later, go to **Settings → Check for updates** 
 - **Trends:** income vs. spending by month, savings rate, and where the money went.
 
 ### Plans
-- **Recommendations** that explain themselves with your numbers. For example: spending more than you earn, a checking balance projected to go negative, emergency fund coverage, high-interest debt, credit utilization, categories over budget or unusually high, subscription totals, price increases, goals falling behind, student loan strategy, idle cash and savings rate.
+- **Recommendations** that explain themselves with your numbers, each with a button that takes you straight to the fix (the payoff plan, a prefilled goal, a category's budget). For example: spending more than you earn, a checking balance projected to go negative, emergency fund coverage, high-interest debt, credit utilization, categories over budget or unusually high, subscription totals, price increases, goals falling behind, student loan strategy, idle cash and savings rate.
 - **Debt payoff planner:** avalanche (highest rate first) or snowball (smallest balance first), an extra-payment slider, your debt-free date, interest and time saved compared with paying only minimums, the payoff order, and exactly **what to pay each debt this month**.
 - **Goals** such as an emergency fund, a trip or a down payment, with a projected completion date and the monthly amount needed to hit a deadline. A goal can be linked to a savings account so its progress updates automatically.
 - **30-day cash flow forecast:** your projected checking balance, day by day, from upcoming bills, paychecks and typical everyday spending.

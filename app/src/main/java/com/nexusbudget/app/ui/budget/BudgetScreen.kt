@@ -27,10 +27,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +49,7 @@ import com.nexusbudget.app.data.FinanceState
 import com.nexusbudget.app.ui.LocalAppContainer
 import com.nexusbudget.app.ui.ScreenScaffold
 import com.nexusbudget.app.ui.components.CategoryPickerDialog
+import com.nexusbudget.app.ui.components.FitTabRow
 import com.nexusbudget.app.ui.components.HealthLabel
 import com.nexusbudget.app.ui.components.MoneyField
 import com.nexusbudget.app.ui.components.MoneyText
@@ -93,13 +92,7 @@ fun BudgetScreen(nav: NavHostController) {
     ScreenScaffold(title = "Budget", topLevel = true, snackbarHostState = snackbar) { padding ->
         val current = state ?: return@ScreenScaffold
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // Tabs size to their labels and scroll sideways when they don't fit, so a narrow screen or
-            // large font never cuts a label off.
-            ScrollableTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background, edgePadding = 0.dp) {
-                tabTitles.forEachIndexed { index, title ->
-                    Tab(selected = tab == index, onClick = { tab = index }, text = { Text(title, maxLines = 1) })
-                }
-            }
+            FitTabRow(tabTitles, selected = tab, onSelect = { tab = it })
             when (tab) {
                 0 -> BudgetTab(current, onShowTransactions = { categoryFilter = it; tab = 1 })
                 1 -> TransactionsTab(nav, current, categoryFilter, onClearFilter = { categoryFilter = null }, snackbar = snackbar)

@@ -30,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import kotlin.math.abs
 
 /**
  * Walks through onboarding with demo data and opens every main screen, failing if any screen
@@ -96,6 +97,16 @@ class AppSmokeTest {
         assertTrue("Cut-off text: ${problems.joinToString(" | ")}", problems.isEmpty())
     }
 
+    /** Fails unless the screen's sub-tabs are spread evenly, with the same space on the left and right. */
+    private fun assertSubTabsCentered(count: Int) {
+        val row = rule.onNodeWithTag("subtabs").fetchSemanticsNode().boundsInRoot
+        val first = rule.onNodeWithTag("subtab-0").fetchSemanticsNode().boundsInRoot
+        val last = rule.onNodeWithTag("subtab-${count - 1}").fetchSemanticsNode().boundsInRoot
+        val left = first.left - row.left
+        val right = row.right - last.right
+        assertTrue("Tabs aren't centered: ${left}px on the left, ${right}px on the right", left >= 0f && abs(left - right) <= 2f)
+    }
+
     /** Scrolls the screen's list to [text], retrying while the list is still filling in. */
     private fun scrollTo(text: String) {
         rule.waitUntil(timeoutMillis = 20_000) {
@@ -157,6 +168,7 @@ class AppSmokeTest {
         // Budget and its sub-tabs
         openTab("budget", "Left to budget")
         assertNotCutOff("Budget", "Transactions", "Recurring", "Trends", "Home", "Accounts", "Plans", "Ask AI")
+        assertSubTabsCentered(count = 4)
         screenshot("06-budget")
         rule.onNodeWithText("Transactions").performClick()
         waitFor("Uncategorized (")

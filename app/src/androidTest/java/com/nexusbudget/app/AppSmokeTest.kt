@@ -6,6 +6,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -107,10 +108,12 @@ class AppSmokeTest {
         assertTrue("Tabs aren't centered: ${left}px on the left, ${right}px on the right", left >= 0f && abs(left - right) <= 2f)
     }
 
-    /** Scrolls the screen's list to [text], retrying while the list is still filling in. */
+    /** Scrolls the screen's vertical list to [text], retrying while the list is still filling in. */
     private fun scrollTo(text: String) {
+        // Only vertical lists: a sideways-scrolling tab row can come first on the screen.
+        val verticalList = hasScrollAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)
         rule.waitUntil(timeoutMillis = 20_000) {
-            runCatching { rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
+            runCatching { rule.onAllNodes(verticalList).onFirst().performScrollToNode(hasText(text, substring = true)) }.isSuccess
         }
     }
 
